@@ -1,4 +1,4 @@
-﻿using Microsoft.Office.Interop.Excel;
+using Microsoft.Office.Interop.Excel;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -15,6 +15,7 @@ namespace DBGen
             { "string", "string" },
             { "datetime", "DateTime" },
             { "date", "DateTime" },
+            { "time", "DateTime" },
             { "double", "double" },
             { "Duration", "DateTimeOffset" },
             { "integer", "int" },
