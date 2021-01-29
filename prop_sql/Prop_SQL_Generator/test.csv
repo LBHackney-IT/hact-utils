@@ -1,0 +1,5 @@
+﻿1,((property_v.subtyp_code='HIR' OR (property_v.subtyp_code>='LOR' AND property_v.subtyp_code<='MER') OR property_v.subtyp_code='TER'))   
+2,(((property_v.area_office>='AN ' AND property_v.area_office<='WY ')))
+3,((property_v.area_office<>'   '))
+4,((property_v.area_office<>'  a')) 
+5,(((property_v.subtyp_code>='ADM' AND property_v.subtyp_code<='BLK') OR property_v.subtyp_code='CMH' OR property_v.subtyp_code='DWE' OR property_v.subtyp_code='HIR' OR (property_v.subtyp_code>='LOR' AND property_v.subtyp_code<='MER') OR property_v.subtyp_code='TER' OR property_v.subtyp_code='WLK'))

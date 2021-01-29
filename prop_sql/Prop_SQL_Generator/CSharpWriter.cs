@@ -7,27 +7,21 @@ namespace Prop_SQL_Generator
 {
     internal class CSharpWriter
     {
-        private Dictionary<int, Statement> methods;
+        private Dictionary<int, CSharpOutModel> methods;
 
-        public CSharpWriter(Dictionary<int, Statement> methods)
+        public CSharpWriter(Dictionary<int, CSharpOutModel> methods)
         {
             this.methods = methods;
         }
 
         internal void WriteTo(string fileName)
         {
-            var methodDeclarations = methods.Where(m => m.Value.Contractors.Contains("001-AJS-VFD2")).Select(m =>
+            var methodDeclarations = methods.Select(m =>
             {
-                var equations = new List<Equation>();
-                m.Value.LoadEquations(equations);
-                int i = 0;
-                foreach (var equation in equations)
-                {
-                    equation.Index = i;
-                    i++;
-                }
+                ParameterLoader visitor = new ParameterLoader();
+                m.Value.Code.Visit(visitor);
 
-                return $"// {string.Join(',', m.Value.Contractors)}\nprivate static bool Method{m.Key}(IProperty p, string[] values) => {m.Value.ToCSharp()};";
+                return $"// {string.Join(',', m.Value.ContractReferences)}\nprivate static bool Method{m.Key}(IProperty p, string[] values) => {m.Value.Code.ToCSharp()};";
             });
             var cases = methods.Select(m => $"case {m.Key}: return Method{m.Key}(p, values);");
 

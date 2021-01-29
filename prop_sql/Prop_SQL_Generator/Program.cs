@@ -18,7 +18,7 @@ namespace Prop_SQL_Generator
                 item.LoadStatement();
             }
 
-            Dictionary<int, Statement> methods = new Dictionary<int, Statement>();
+            Dictionary<int, CSharpOutModel> methods = new Dictionary<int, CSharpOutModel>();
             List<CSVOutModel> csvModels = new List<CSVOutModel>();
             int index = 1;
             foreach (var item in csvData)
@@ -31,7 +31,10 @@ namespace Prop_SQL_Generator
                     MatchResolutionId = key,
                 };
 
-                item.Statement?.LoadEquations(newModel.Parameters);
+                ParameterLoader visitor = new ParameterLoader();
+                item.Statement?.Visit(visitor);
+                newModel.Parameters = visitor.GetParameters();
+
                 csvModels.Add(newModel);
             }
 
@@ -39,7 +42,7 @@ namespace Prop_SQL_Generator
             WriteCSharp(methods);
         }
 
-        private static void WriteCSharp(Dictionary<int, Statement> methods)
+        private static void WriteCSharp(Dictionary<int, CSharpOutModel> methods)
         {
             new CSharpWriter(methods).WriteTo("../../../out.cs");
         }
@@ -49,23 +52,53 @@ namespace Prop_SQL_Generator
             File.WriteAllLines("../../../out.csv", csvModels.Select(csvModels => csvModels.ToString()));
         }
 
-        private static int GetOrAdd(Dictionary<int, Statement> methods, ref int index, Statement statement, string contractRef)
+        private static int GetOrAdd(Dictionary<int, CSharpOutModel> methods, ref int index, Connections statement, string contractRef)
         {
             if (statement is null) return 0;
 
-            int key = methods.Where(kv => kv.Value.StatementEquals(statement)).Select(kv => kv.Key).SingleOrDefault();
+            int key = methods.Where(kv => kv.Value.Code.Equals(statement)).Select(kv => kv.Key).SingleOrDefault();
 
             if (key == 0)
             {
-                methods.Add(index, statement);
-                methods[index].Contractors.Add(contractRef);
+                methods.Add(index, new CSharpOutModel { Code = statement});
+                methods[index].ContractReferences.Add(contractRef);
                 return index++;
             }
             else
             {
-                methods[key].Contractors.Add(contractRef);
+                methods[key].ContractReferences.Add(contractRef);
                 return key;
             }
+        }
+    }
+
+    internal class ParameterLoader : IVisitor
+    {
+        private List<string> parameters = new List<string>();
+        private int index = 0;
+
+        public void Accept(ISourceItem item)
+        {
+            RunFor<Constant>(item, constant =>
+            {
+                parameters.Add(constant.Value);
+                constant.Index = index++;
+            });
+        }
+
+        private void RunFor<T>(ISourceItem item, Action<T> action)
+            where T : class
+        {
+            if (item is T)
+            {
+                T casted = item as T;
+                action(casted);
+            }
+        }
+
+        internal List<string> GetParameters()
+        {
+            return parameters;
         }
     }
 
@@ -76,7 +109,7 @@ namespace Prop_SQL_Generator
         public string ContractRef { get; set; }
         public string PropSql { get; set; }
 
-        public Statement Statement { get; set; }
+        public Connections Statement { get; set; }
 
         public CSVModel()
         {
@@ -104,11 +137,17 @@ namespace Prop_SQL_Generator
     {
         public string ContractRef { get; set; }
         public int MatchResolutionId { get; set; }
-        public List<Equation> Parameters { get; set; } = new List<Equation>();
+        public List<string> Parameters { get; set; } = new List<string>();
 
         public override string ToString()
         {
-            return $"{ContractRef},{MatchResolutionId},{string.Join(',', Parameters.Select(p => p.TrimmedValue))}";
+            return $"{ContractRef},{MatchResolutionId},{string.Join(';', Parameters.Select(p => p.Trim('\'')))}";
         }
+    }
+
+    class CSharpOutModel
+    {
+        public Connections Code { get; set; }
+        public List<string> ContractReferences { get; set; } = new List<string>();
     }
 }
