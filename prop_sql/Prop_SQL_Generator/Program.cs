@@ -23,7 +23,7 @@ namespace Prop_SQL_Generator
             int index = 1;
             foreach (var item in csvData)
             {
-                int key = GetOrAdd(methods, ref index, item.Statement);
+                int key = GetOrAdd(methods, ref index, item.Statement, item.ContractRef);
 
                 CSVOutModel newModel = new CSVOutModel
                 {
@@ -41,15 +41,15 @@ namespace Prop_SQL_Generator
 
         private static void WriteCSharp(Dictionary<int, Statement> methods)
         {
-            
+            new CSharpWriter(methods).WriteTo("../../../out.cs");
         }
 
         private static void WriteCsv(List<CSVOutModel> csvModels)
         {
-            File.WriteAllLines("out.csv", csvModels.Select(csvModels => csvModels.ToString()));
+            File.WriteAllLines("../../../out.csv", csvModels.Select(csvModels => csvModels.ToString()));
         }
 
-        private static int GetOrAdd(Dictionary<int, Statement> methods, ref int index, Statement statement)
+        private static int GetOrAdd(Dictionary<int, Statement> methods, ref int index, Statement statement, string contractRef)
         {
             if (statement is null) return 0;
 
@@ -58,11 +58,12 @@ namespace Prop_SQL_Generator
             if (key == 0)
             {
                 methods.Add(index, statement);
-                index++;
-                return index;
+                methods[index].Contractors.Add(contractRef);
+                return index++;
             }
             else
             {
+                methods[key].Contractors.Add(contractRef);
                 return key;
             }
         }
@@ -86,8 +87,8 @@ namespace Prop_SQL_Generator
         {
             var split = csvLine.Split(',').Select(l => l.Trim());
 
-            PropSql = split.First();
-            ContractRef = split.Last();
+            ContractRef = split.First();
+            PropSql = split.Last();
 
             return this;
         }
@@ -107,7 +108,7 @@ namespace Prop_SQL_Generator
 
         public override string ToString()
         {
-            return $"{ContractRef},{MatchResolutionId},{string.Join(',', Parameters.Select(p => p.Value))}";
+            return $"{ContractRef},{MatchResolutionId},{string.Join(',', Parameters.Select(p => p.TrimmedValue))}";
         }
     }
 }

@@ -1,4 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 
 namespace Prop_SQL_Generator
 {
@@ -8,19 +11,38 @@ namespace Prop_SQL_Generator
 
     class Statement
     {
-        public Statement Left { get; set; }
+        public List<string> Contractors { get; set; } = new List<string>();
+
+
+        public bool Parentheses { get; set; } = false;
+        public Statement[] Statements { get; set; }
+        public ConnectorEnum?[] Connectors { get; set; }
          
-        public ConnectorEnum? Connector { get; set; }
-         
-        public Statement Right { get; set; }
-         
-        public Statement Parent { get; set; }
          
         public Equation Equation { get; set; }
+
+        string GetConnector(ConnectorEnum enumValue)
+        {
+            switch (enumValue)
+            {
+                case ConnectorEnum.And: return "&&";
+                case ConnectorEnum.Or: return "||";
+            }
+
+            throw new NotSupportedException("Unsupported Connector");
+        }
 
         public override string ToString()
         {
             return Equation?.ToString() ?? $"({Left} {Connector} {Right})";
+        }
+
+        public string ToCSharp()
+        {
+            string open = Parentheses ? "(" : "";
+            string close = Parentheses ? ")" : "";
+            string connectorSection = Connector != null ? $"{ConnectorString} {Right?.ToCSharp()}" : "";
+            return Equation?.ToCSharp() ?? $"{open}{Left?.ToCSharp()} {connectorSection}{close}"; 
         }
 
         public void LoadEquations(List<Equation> equations)
@@ -43,9 +65,52 @@ namespace Prop_SQL_Generator
 
         public string Value { get; set; }
 
+        public string TrimmedValue => Value.Trim('\'');
+
         public override string ToString()
         {
-            return $"{PropertyProperty} {Comparator} {Value}";
+            return $"{PropertyProperty} {Comparator} {TrimmedValue}";
+        }
+
+        public string ComparatorString
+        {
+            get
+            {
+                switch (Comparator)
+                {
+                    case ComparatorEnum.Equals: return "==";
+                    case ComparatorEnum.GreaterThan: return ">";
+                    case ComparatorEnum.GreaterThenOrEqual: return ">=";
+                    case ComparatorEnum.LessThan: return "<";
+                    case ComparatorEnum.LessThanOrEqual: return "<=";
+                    case ComparatorEnum.NotEqual: return "!=";
+                }
+
+                throw new NotSupportedException("Unsupported Comparator");
+            }
+        }
+
+        public string CSharpProperty
+        {
+            get
+            {
+                var split = PropertyProperty.Split('.');
+                var prop = split[1];
+                var words = prop.Split('_');
+                return $"p.{string.Join("", words.Select(w => CultureInfo.CurrentCulture.TextInfo.ToTitleCase(w)))}";
+            }
+        }
+
+        public int Index { get; internal set; }
+
+        internal string ToCSharp()
+        {
+            if (Comparator == ComparatorEnum.Equals || Comparator == ComparatorEnum.NotEqual)
+            {
+                return $"{CSharpProperty} {ComparatorString} values[{Index}]";
+            }
+
+            return $"string.Compare({CSharpProperty}, values[{Index}]) {ComparatorString} 0";
         }
     }
 
